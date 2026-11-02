@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>猜數字｜版本一</title>
+  <style>
+    :root {font-family:system-ui,"Microsoft JhengHei",sans-serif;color:#23443d;background:#f4f2e9;line-height:1.7}
+    * {box-sizing:border-box}
+    body {margin:0;min-height:100vh;display:grid;place-items:center;padding:28px 16px}
+    main {width:min(100%,580px)}
+    .eyebrow {margin:0 0 8px;font-size:13px;letter-spacing:.12em;color:#576b5f}
+    h1 {font-size:clamp(32px,7vw,46px);line-height:1.25;margin:0 0 14px}
+    .intro {margin:0 0 24px;color:#50645b}
+    .card {padding:clamp(24px,5vw,38px);background:#fff;border:1px solid #d1dcd1;border-radius:26px;box-shadow:0 16px 50px #274b3e0a}
+    .range {display:flex;align-items:center;justify-content:center;gap:22px;padding:10px 0 20px;font-size:36px;font-weight:750}
+    .range span {color:#839487;font-size:22px;font-weight:400}
+    label {display:block;font-weight:650;margin-bottom:10px}
+    input {width:100%;font:700 36px/1.4 system-ui;text-align:center;padding:14px;border:2px solid #a3b9ac;border-radius:14px;color:#23443d;background:#fbfcf8}
+    input::placeholder {color:#9ba69e;font-weight:400}
+    button {font:inherit;font-weight:650;border-radius:12px;padding:13px 18px;cursor:pointer;min-height:50px}
+    .submit {width:100%;margin-top:14px;border:1px solid #315e4f;background:#315e4f;color:white}
+    .reset {border:1px solid #a6b9ab;color:#315e4f;background:transparent}
+    button:disabled {opacity:.5;cursor:default}
+    :focus-visible {outline:3px solid #a86731;outline-offset:4px}
+    #feedback {display:flex;align-items:center;justify-content:center;text-align:center;min-height:94px;border-radius:14px;background:#edf2eb;padding:18px;margin:24px 0;color:#355a4b;font-size:20px;font-weight:650}
+    #feedback[data-tone=error] {background:#f8e9e1;color:#853b29}
+    #feedback[data-tone=win] {background:#dcebd7;color:#28512a}
+    .footer {display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .note {font-size:13px;color:#5b6b61;margin:22px 4px 0}
+    .small {font-size:14px;color:#5b6b61}
+    @media(prefers-reduced-motion:no-preference) {button{transition:background .15s}.submit:hover:not(:disabled){background:#244d40}}
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">數位科技概論 · 版本一</p>
+  <h1>你猜，我提示。</h1>
+  <p class="intro">電腦已選好一個 1～100 的整數。<br>根據「太大」或「太小」，一步步找到答案。</p>
+  <section class="card" aria-label="猜數字遊戲">
+    <div class="range" aria-hidden="true">1 <span>—</span> 100</div>
+    <form id="guess-form" novalidate>
+      <label for="guess">你猜的數字</label>
+      <input id="guess" type="text" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="例如 50" aria-describedby="feedback">
+      <button class="submit" id="submit" type="submit">猜看看</button>
+    </form>
+    <p id="feedback" role="status" aria-live="polite" aria-atomic="true">準備好了！先猜一個數字吧。</p>
+    <div class="footer"><button class="reset" id="restart" type="button">重新開始</button><span class="small">也可以按 Enter 送出</span></div>
+  </section>
+  <p class="note">這一版沒有帳號或存檔。重新開始、重新整理或關閉頁面後再開啟，都會重新抽選答案，不會保留紀錄。</p>
+</main>
+<script>
+'use strict';
+// 這份程式是 Agent 產生的參考作品；學生重點是描述需求與驗收行為。
+const form = document.getElementById('guess-form');
+const input = document.getElementById('guess');
+const submit = document.getElementById('submit');
+const feedback = document.getElementById('feedback');
+const restart = document.getElementById('restart');
+let answer;
+let finished;
+
+function randomAnswer(random = Math.random) {
+  return Math.floor(random() * 100) + 1;
+}
+function parseGuess(raw) {
+  const text = String(raw).trim();
+  if (!/^\d+$/.test(text)) return null;
+  const value = Number(text);
+  return Number.isInteger(value) && value >= 1 && value <= 100 ? value : null;
+}
+function compareGuess(value, target) {
+  return value === target ? 'correct' : value > target ? 'high' : 'low';
+}
+function showMessage(text, tone = '') {
+  feedback.textContent = text;
+  feedback.dataset.tone = tone;
+}
+function newGame(focusInput = true) {
+  answer = randomAnswer();
+  finished = false;
+  input.value = '';
+  input.disabled = false;
+  submit.disabled = false;
+  input.removeAttribute('aria-invalid');
+  showMessage('準備好了！先猜一個數字吧。');
+  if (focusInput) input.focus();
+}
+form.addEventListener('submit', event => {
+  event.preventDefault();
+  if (finished) return;
+  const value = parseGuess(input.value);
+  if (value === null) {
+    showMessage('請輸入 1～100 的整數。', 'error');
+    input.setAttribute('aria-invalid', 'true');
+    input.focus();
+    return;
+  }
+  input.removeAttribute('aria-invalid');
+  const result = compareGuess(value, answer);
+  if (result === 'correct') {
+    finished = true;
+    showMessage('猜對了！答案就是 ' + answer + '。', 'win');
+    input.disabled = true;
+    submit.disabled = true;
+    restart.focus();
+  } else {
+    showMessage(value + (result === 'high' ? ' 太大了，再小一點！' : ' 太小了，再大一點！'));
+    input.focus();
+    input.select();
+  }
+});
+restart.addEventListener('click', () => newGame());
+newGame(false);
+</script>
+</body>
+</html>
