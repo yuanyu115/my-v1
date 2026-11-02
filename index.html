@@ -169,7 +169,7 @@ debugToggle.addEventListener('click', () => {
   if (finished) return;
   const value = parseGuess(input.value);
   if (value === null) {
-    showMessage('請輸入 1～100 的整數。', 'error');
+    showMessage('請輸入四個不重複的數字（0～9）。', 'error');
     input.setAttribute('aria-invalid', 'true');
     input.focus();
     return;
