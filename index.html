@@ -38,14 +38,19 @@
   <h1>你猜，我提示。</h1>
   <p class="intro"><p class="intro">電腦已選好四個不重複的數字。<br>猜猜看答案是什麼！A 代表數字和位置都正確，B 代表數字正確但位置不同。</p><br>根據「太大」或「太小」，一步步找到答案。</p>
   <section class="card" aria-label="猜數字遊戲">
-    <div class="range" aria-hidden="true">1 <span>—</span> 100</div>
+    <div class="range" aria-hidden="true">0 — 9</div>
     <form id="guess-form" novalidate>
       <label for="guess">你猜的數字</label>
-      <input id="guess" type="text" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="例如 50" aria-describedby="feedback">
+      <input id="guess" type="text" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="例如 1234" aria-describedby="feedback">
       <button class="submit" id="submit" type="submit">猜看看</button>
     </form>
     <p id="feedback" role="status" aria-live="polite" aria-atomic="true">準備好了！先猜一個數字吧。</p>
-    <div class="footer"><button class="reset" id="restart" type="button">重新開始</button><span class="small">也可以按 Enter 送出</span></div>
+    <div class="footer">
+  <button class="reset" id="restart" type="button">重新開始</button>
+  <button class="reset" id="debug-toggle" type="button" aria-pressed="false">開啟除錯模式</button>
+  <span class="small">也可以按 Enter 送出</span>
+</div>
+<p id="debug-answer" hidden></p>
   </section>
   <p class="note">這一版沒有帳號或存檔。重新開始、重新整理或關閉頁面後再開啟，都會重新抽選答案，不會保留紀錄。</p>
 </main>
@@ -59,18 +64,43 @@ const feedback = document.getElementById('feedback');
 const restart = document.getElementById('restart');
 let answer;
 let finished;
+let debugMode = false;
+
+const debugToggle = document.getElementById('debug-toggle');
+const debugAnswer = document.getElementById('debug-answer');
 
 function randomAnswer(random = Math.random) {
-  return Math.floor(random() * 100) + 1;
+  const digits = ["0","1","2","3","4","5","6","7","8","9"];
+
+  for (let i = digits.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [digits[i], digits[j]] = [digits[j], digits[i]];
+  }
+
+  return digits.slice(0, 4).join("");
 }
 function parseGuess(raw) {
   const text = String(raw).trim();
-  if (!/^\d+$/.test(text)) return null;
-  const value = Number(text);
-  return Number.isInteger(value) && value >= 1 && value <= 100 ? value : null;
+
+  if (!/^\d{4}$/.test(text)) return null;
+
+  if (new Set(text).size !== 4) return null;
+
+  return text;
 }
 function compareGuess(value, target) {
-  return value === target ? 'correct' : value > target ? 'high' : 'low';
+  let a = 0;
+  let b = 0;
+
+  for (let i = 0; i < 4; i++) {
+    if (value[i] === target[i]) {
+      a++;
+    } else if (target.includes(value[i])) {
+      b++;
+    }
+  }
+
+  return { a, b };
 }
 function showMessage(text, tone = '') {
   feedback.textContent = text;
@@ -79,14 +109,62 @@ function showMessage(text, tone = '') {
 function newGame(focusInput = true) {
   answer = randomAnswer();
   finished = false;
+  debugMode = false;
+debugToggle.textContent = '開啟除錯模式';
+debugToggle.setAttribute('aria-pressed', 'false');
+debugAnswer.hidden = true;
+debugAnswer.textContent = '';
   input.value = '';
   input.disabled = false;
   submit.disabled = false;
   input.removeAttribute('aria-invalid');
-  showMessage('準備好了！先猜一個數字吧。');
+  showMessage('準備好了！輸入四個不重複的數字吧。');
   if (focusInput) input.focus();
 }
-form.addEventListener('submit', event => {
+debugToggle.addEventListener('click', () => {
+  debugMode = !debugMode;
+
+  debugToggle.textContent = debugMode
+    ? '關閉除錯模式'
+    : '開啟除錯模式';
+
+  debugToggle.setAttribute('aria-pressed', String(debugMode));
+
+  debugAnswer.hidden = !debugMode;
+
+  debugAnswer.textContent = debugMode
+    ? '目前答案：' + answer
+    : '';
+});
+  event.preventDefault();
+  if (finished) return;
+
+  const value = parseGuess(input.value);
+
+  if (value === null) {
+    showMessage('請輸入四個不重複的數字（0～9）。', 'error');
+    input.setAttribute('aria-invalid', 'true');
+    input.focus();
+    return;
+  }
+
+  input.removeAttribute('aria-invalid');
+
+  const result = compareGuess(value, answer);
+
+  if (result.a === 4) {
+    finished = true;
+    showMessage('4A0B！猜對了！答案是 ' + answer + '。', 'win');
+    input.disabled = true;
+    submit.disabled = true;
+    restart.focus();
+  } else {
+    showMessage(result.a + 'A' + result.b + 'B');
+    input.focus();
+    input.select();
+  }
+});
+  
   event.preventDefault();
   if (finished) return;
   const value = parseGuess(input.value);
